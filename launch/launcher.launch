@@ -27,8 +27,8 @@
   />
    <node
     pkg="telematics"
-    type="talker.py"
-    name="talker"
+    type="tc_status.py"
+    name="tc_status"
     output="screen"
   />
 </launch>

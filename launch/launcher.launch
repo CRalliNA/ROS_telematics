@@ -1,0 +1,34 @@
+<launch>
+
+    <node
+    pkg="telematics"
+    type="CAN_monitor.py"
+    name="CAN_monitor"
+    output="screen"
+  />
+    
+    <node
+    pkg="telematics"
+    type="bus_manager.py"
+    name="bus_manager"
+    output="screen"
+  />
+    <node
+    pkg="telematics"
+    type="tp_sender.py"
+    name="tp_sender"
+    output="screen"
+  />
+    <node
+    pkg="telematics"
+    type="tp_receiver.py"
+    name="tp_receiver"
+    output="screen"
+  />
+   <node
+    pkg="telematics"
+    type="talker.py"
+    name="talker"
+    output="screen"
+  />
+</launch>

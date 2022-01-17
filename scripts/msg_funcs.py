@@ -73,39 +73,41 @@ def bus_respond(pub,message,data,my_address):
         
 def implement_respond(pub,message,data,my_address):
     sender=data.ID&0xFF
-    
-    #These values are copied directly from the topcon task controller - most likely different for us
+    message.Data=None
+    priority=0
+    #Receive client task message and respond with request version message
     if data.Data==b'\xff\xff\xff\xff\xfe\xff\xff\xff':
-        message.ID=(3<<26)+(203<<16)+(sender<<8)+my_address
-        message.Dest=sender
+        priority=5
         message.Data=b'\x00\xff\xff\xff\xff\xff\xff\xff'
-        pub.publish(message)
-        
-        
-    elif data.Data==b'\x00\xff\xff\xff\xff\xff\xff\xff' or data.Data==b'\x10\x03\xff\x17\x00\x04\xff\x08':
-        message.ID=(3<<26)+(203<<16)+(sender<<8)+my_address
+           
+    #Receive request version message or the client version message and respond with our version and request the client version
+    elif data.Data==b'\x00\xff\xff\xff\xff\xff\xff\xff':# or data.Data[0:1]==b'\x10':
+        print('received request version')
+        priority=5
+        message.Data=(b'\x10\x03\xff\x02\x00\x06\xc8\x08')#TC/DL version message
+        message.ID=(priority<<26)+(203<<16)+(sender<<8)+my_address
         message.Dest=sender
-        message.Data=(b'\x10\x03\xff\x02\x00\x06\xc8\x08')
-        pub.publish(message)
+        pub.publish(message) 
+        priority=5
+        message.Data=b'\x00\xff\xff\xff\xff\xff\xff\xff'#request version message
         
+    #Receive request structure label message and send structure label unavailable in response
     elif data.Data==b'\x01\x34\x90\x42\x0d\x91\x1a\x7b':
-        message.ID=(3<<26)+(203<<16)+(sender<<8)+my_address
-        message.Dest=sender
+        priority=5
         message.Data=(b'\x11\xff\xff\xff\xff\xff\xff\xff')
-        pub.publish(message)    
-        
-        
-    elif data.Data==b'\x41\x93\x06\x00\x00\xff\xff\xff':
-        message.ID=(3<<26)+(203<<16)+(sender<<8)+my_address
-        message.Dest=sender
+ 
+    #Receive request object pool transfer message and respond with request object pool transfer response message
+    elif data.Data[0:1]==b'\x41':
+        priority=5
         message.Data=(b'\x51\x00\xff\xff\xff\xff\xff\xff')
-        pub.publish(message)
-         
+
+    #Receive object pool activate message and respond with object pool activate response message
     elif data.Data==b'\x81\xff\xff\xff\xff\xff\xff\xff':
-        message.ID=(5<<26)+(203<<16)+(sender<<8)+my_address
-        message.Dest=sender
+        priority=5
         message.Data=(b'\x91\x00\xff\xff\xff\xff\x00\xff')
-        pub.publish(message)   
-        
+  
     
-        
+    if message.Data!=None:
+        message.ID=(priority<<26)+(203<<16)+(sender<<8)+my_address
+        message.Dest=sender
+        pub.publish(message) 

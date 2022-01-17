@@ -19,8 +19,8 @@ def callback(data,args):
         bus_respond(pub,message,data,my_address) #function sends response to request from another ecu on the bus
     elif (data.ID>>16)&0xFF==234 and data.Data==b'\x00\xee\x00':
         address_claim(pub,message) #responds to address claim message
-    	status_pub.pubish('1')
-    
+        status_pub.publish('1')
+        
     elif (data.ID>>16)&0xFF==203 and (data.ID>>8)&0xFF==236:#Responds to process data messages
         implement_respond(pub,message,data,my_address)
     

@@ -21,14 +21,20 @@
   />
     <node
     pkg="telematics"
+    type="tc_status.py"
+    name="tc_status"
+    output="screen"
+  />
+    <node
+    pkg="telematics"
     type="tp_receiver.py"
     name="tp_receiver"
     output="screen"
   />
    <node
     pkg="telematics"
-    type="tc_status.py"
-    name="tc_status"
+    type="request_data.py"
+    name="request_data"
     output="screen"
   />
 </launch>

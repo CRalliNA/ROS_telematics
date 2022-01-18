@@ -7,7 +7,7 @@ from telematics.msg import can_frame
 from can import Message
 can_interface='can0'
 bus= can.interface.Bus(can_interface, bustype='socketcan')
-write_f=open('/home/charlie/Telemetry/telematics.csv','w')#Writing to csv for testing
+write_f=open('/home/charlie/Telemetry/record1.csv','w')#Writing to csv for testing
 write_f.write('S/R,ID,PF,PS,SA,Data\n')
 
 

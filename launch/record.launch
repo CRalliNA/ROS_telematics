@@ -1,0 +1,10 @@
+<launch>
+
+    <node
+    pkg="telematics"
+    type="CAN_monitor.py"
+    name="CAN_monitor"
+    output="screen"
+  />
+    
+</launch>

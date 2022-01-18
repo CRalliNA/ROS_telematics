@@ -52,15 +52,12 @@ def TP_CTS(pub,message,data,my_address,msg_bytes,msg_packets):
     return msg_bytes,msg_packets
         
 def TP_ACK(pub,message,data,my_address,msg_bytes,PGN):
-    print('TP_ACK')
 
     #Send end of message acknowledgement
     sender=data.ID&0xFF
-
     message.ID=0x1CEC0000+(sender<<8)+my_address
     message.Dest=sender
     message.Data=b'\x13'+int.to_bytes(msg_bytes,2,'little')+data.Data[0:1]+b'\xff'+PGN
-    print(message.ID,message.Dest,str(message.Data))
     pub.publish(message)
     
     

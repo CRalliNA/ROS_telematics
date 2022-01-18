@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
 
-import rospy
+import rospy,codecs
 from std_msgs.msg import String
 from telematics.msg import can_frame
 from tp_func import *
-f=open('\home\charlie\Telemetry\object_pool.txt','w')
+f=open('/home/charlie/Telemetry/object_pool2.txt','a')
 whole_msg=bytes()
 last_packet=0
 msg_bytes=0
@@ -32,9 +32,8 @@ def callback(data,args):
             whole_msg=whole_msg+data.Data[1:8]
             last_packet=data.Data[0]
             
-            if data.Data[0]==msg_packets: 
+            if data.Data[0]==msg_packets:# and data.Data[0]==msg_bytes//7: 
                 print(whole_msg) #Do something with this
-                f.write(str(whole_msg))
                 
                 whole_msg=bytes()
                 last_packet=0

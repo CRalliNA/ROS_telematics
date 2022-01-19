@@ -5,6 +5,7 @@ import rospy,codecs
 from std_msgs.msg import String
 from telematics.msg import can_frame
 from tp_func import *
+from op_decode import *
 f=open('/home/charlie/Telemetry/object_pool2.txt','a')
 whole_msg=bytes()
 last_packet=0
@@ -33,8 +34,9 @@ def callback(data,args):
             last_packet=data.Data[0]
             
             if data.Data[0]==msg_packets:# and data.Data[0]==msg_bytes//7: 
-                print(whole_msg) #Do something with this
-                
+                print(whole_msg) 
+                #Change this so it only calls when it is the TC object pool
+                pool_decode(whole_msg)
                 whole_msg=bytes()
                 last_packet=0
                 TP_ACK(pub,message,data,my_address,msg_bytes,PGN)

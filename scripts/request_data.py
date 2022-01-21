@@ -7,7 +7,10 @@ from op_decode import *
 count=0
 DE_DDI=[]#list of available Elements and DDIs
 obj_pool=None
-f=open('/home/charlie/Telemetry/DDIs.txt','w')
+f=open('/home/charlie/Telemetry/DDIs.csv','w')
+f.write('valid(3),Element Number,DDI,Information')
+g=open('/home/charlie/Telemetry/fixed_info.csv','w')
+g.write('Object id, DDI, Information')
 def callback(data,args):
     global count,DE_DDI,obj_pool
     
@@ -17,17 +20,35 @@ def callback(data,args):
 
     if (data.ID>>16)&0xFF==203  and (data.ID>>8)&0xFF==236 and len(data.Data)>8:#Find a better way to check for the object pool
         obj_pool=pool_decode(data.Data)
-        '''print('Elements\n')
+        num=0 
+        num2=0       
+        print('\nDevice\n\nName: %s\nSoftware version:%s\nNAME(hex code): %s\nSerial Number: %s\n'%(obj_pool.DVC_t[0].txt_name,obj_pool.DVC_t[0].software,obj_pool.DVC_t[0].name,obj_pool.DVC_t[0].serial_num))
+        
+
+        print('Elements\n')
         for i in range(len(obj_pool.DET_t)):
             print(obj_pool.DET_t[i].DE_num,obj_pool.DET_t[i].txt_name,obj_pool.DET_t[i].objects)
         print('\nAvailable DDIs\n')
         for i in range(len(obj_pool.DPD_t)):
-            print(obj_pool.DPD_t[i].ob_id,obj_pool.DPD_t[i].txt_name,obj_pool.DPD_t[i].DDI, obj_pool.DPD_t[i].trigger)
+            print(obj_pool.DPD_t[i].ob_id,obj_pool.DPD_t[i].txt_name,obj_pool.DPD_t[i].DDI, obj_pool.DPD_t[i].trigger,obj_pool.DPD_t[i].presentation_id)
 
         print('\nInformation\n')
         for i in range(len(obj_pool.DPT_t)):
-            print(obj_pool.DPT_t[i].ob_id,obj_pool.DPT_t[i].txt_name,obj_pool.DPT_t[i].DDI,obj_pool.DPT_t[i].value)
-'''
+            for j in range(len(obj_pool.DVP_t)):
+                if obj_pool.DVP_t[j].ob_id==obj_pool.DPT_t[i].presentation_id:
+                    num=j
+            for j in range(len(obj_pool.DET_t)):
+                for k in range(len(obj_pool.DET_t[j].objects)):
+                    if obj_pool.DET_t[j].objects[k]==obj_pool.DPT_t[i].ob_id:
+                        num2=j
+            print('%d, %d, %s:%s = %d%s'%(obj_pool.DPT_t[i].ob_id, obj_pool.DPT_t[i].DDI, obj_pool.DET_t[num2].txt_name, obj_pool.DPT_t[i].txt_name, (obj_pool.DPT_t[i].value*obj_pool.DVP_t[num].scale) + obj_pool.DVP_t[num].offset,obj_pool.DVP_t[num].unit))
+            g.write('\n%d, %d, %s:%s = %d%s'%(obj_pool.DPT_t[i].ob_id, obj_pool.DPT_t[i].DDI, obj_pool.DET_t[num2].txt_name, obj_pool.DPT_t[i].txt_name, (obj_pool.DPT_t[i].value*obj_pool.DVP_t[num].scale) + obj_pool.DVP_t[num].offset,obj_pool.DVP_t[num].unit))
+        print('\nDisplay info\n')
+        for i in range(len(obj_pool.DVP_t)):
+            print(obj_pool.DVP_t[i].ob_id,obj_pool.DVP_t[i].scale,obj_pool.DVP_t[i].num_dec,obj_pool.DVP_t[i].unit)
+        
+
+
         for i in range(len(obj_pool.DET_t)):
             for j in range(len(obj_pool.DET_t[i].objects)):
                 for k in range(len(obj_pool.DPD_t)):
@@ -46,24 +67,49 @@ def callback(data,args):
         
         
     elif (data.ID>>16)&0xFF==203  and (data.ID>>8)&0xFF==236 and (data.Data[0]&0x0F==3 or data.Data[0]&0x0F==13) and count<len(DE_DDI):
-        
+        trig=2
+        value=0
        
         
         hex_num=struct.pack('<H',DE_DDI[count][1])
-
-        hex_el=int.to_bytes(((DE_DDI[count][0]&0x0F)<<4)+2,1,'little')+int.to_bytes(((DE_DDI[count][0]>>4)&0xFF),1,'little')
-        
-        print (hex_el)
+        hex_el1=int.to_bytes(((DE_DDI[count][0]&0x0F)<<4)+trig,1,'little')+int.to_bytes(((DE_DDI[count][0]>>4)&0xFF),1,'little')
         message.ID=(3<<26)+(203<<16)+(234<<8)+236
         message.Dest=234
+        message.Data=hex_el1+ hex_num +int.to_bytes(value,4,'little')
+        pub.publish(message)
+
+
+
+        if DE_DDI[count][2]%2==1:
+            trig=4
+            value=1000
+        elif DE_DDI[count][2]&8==1:
+            trig=8
+            value=1   
+        hex_el2=int.to_bytes(((DE_DDI[count][0]&0x0F)<<4)+trig,1,'little')+int.to_bytes(((DE_DDI[count][0]>>4)&0xFF),1,'little')
         
+        message.Data=hex_el2+ hex_num +int.to_bytes(value,4,'little')
         
-        message.Data=hex_el+ hex_num +b'\x00\x00\x00\x00'
         pub.publish(message)
         count=count+1
-    if   (data.ID>>16)&0xFF==203  and (data.ID>>8)&0xFF==236 and (data.Data[0]&0x0F==3 or data.Data[0]&0x0F==13):
-        f.write('%d, %d, %d, %d, %s\n'%(data.Data[0]&0x0F,(data.Data[0]>>4),data.Data[2]+(data.Data[3]<<8),data.Data[4]+(data.Data[5]<<8) + (data.Data[6]<<16) + (data.Data[7]<<24),data.Data))
-    
+    if (data.ID>>16)&0xFF==203  and (data.ID>>8)&0xFF==236 and (data.Data[0]&0x0F==3 or data.Data[0]&0x0F==13):
+        dpd_num=0
+        det_num=0
+        dvp_num=0
+        for i in range (len(obj_pool.DET_t)):
+            if obj_pool.DET_t[i].DE_num==(data.Data[0]>>4)+(data.Data[1]<<4):
+                det_num=i
+        for i in range (len(obj_pool.DPD_t)):
+            if obj_pool.DPD_t[i].DDI==data.Data[2]+(data.Data[3]<<8):
+                dpd_num=i
+        for i in range (len(obj_pool.DVP_t)):
+            if obj_pool.DVP_t[i].ob_id==obj_pool.DPD_t[dpd_num].presentation_id:
+                dvp_num=i
+                
+        
+        f.write('\n%d, %d, %d, %s:%s = %d%s'%(data.Data[0]&0x0F,(data.Data[0]>>4)+(data.Data[1]<<4),data.Data[2]+(data.Data[3]<<8), obj_pool.DET_t[det_num].txt_name, obj_pool.DPD_t[dpd_num].txt_name, (struct.unpack('<l',data.Data[4:8])[0] * obj_pool.DVP_t[dvp_num].scale) + obj_pool.DVP_t[dvp_num].offset, obj_pool.DVP_t[dvp_num].unit))
+        
+        print('%d, %d, %d, %s:%s = %d%s\n'%(data.Data[0]&0x0F,(data.Data[0]>>4)+(data.Data[1]<<4),data.Data[2]+(data.Data[3]<<8),obj_pool.DET_t[det_num].txt_name,obj_pool.DPD_t[dpd_num].txt_name, (struct.unpack('<l',data.Data[4:8])[0] * obj_pool.DVP_t[dvp_num].scale) + obj_pool.DVP_t[dvp_num].offset, obj_pool.DVP_t[dvp_num].unit))
 def talker():
     pub = rospy.Publisher('CAN_to_send', can_frame, queue_size=10)
     rospy.init_node('request_data', anonymous=True)

@@ -2,7 +2,7 @@
 
 
 import rospy,codecs
-from std_msgs.msg import String
+from std_msgs.msg import Int32
 from telematics.msg import can_frame
 from tp_func import *
 from op_decode import *
@@ -18,8 +18,9 @@ def callback(data,args):
     
     pub=args[0]
     pub2=args[1]
-    message=args[2]
-    my_address=args[3]
+    pub3=args[2]
+    message=args[3]
+    my_address=args[4]
     
     PF=(data.ID>>16)&0xFF
     PS=(data.ID>>8)&0xFF
@@ -42,13 +43,17 @@ def callback(data,args):
                 print(message.ID)
                 message.Data=whole_msg
                 message.Dest=my_address
-                print('sending pool')
+                #print('sending pool')
                 pub2.publish(message)
                 
                 
                 whole_msg=bytes()
                 last_packet=0
-                TP_ACK(pub,message,data,my_address,msg_bytes,PGN)
+                TP_ACK(pub,message,data,my_address,msg_bytes,PGN)#calls function to acknowledge the tp messages
+                
+                if PGN==b'\x00\xcb\x00':#lets bus manager know that a tp has been received so it can send the object pool response
+                    pub3.publish(data.ID&0xFF)
+                
                 PGN=bytes()
                 msg_bytes=0
                 msg_packets=0
@@ -63,9 +68,10 @@ def listener():
     rospy.init_node('tp_receiver', anonymous=True)
     pub = rospy.Publisher('CAN_to_send', can_frame, queue_size=10)
     pub2= rospy.Publisher('Received_CAN', can_frame, queue_size=10)
+    pub3= rospy.Publisher('tp_received',Int32,queue_size=10)
     message=can_frame()
     my_address=236
-    rospy.Subscriber('Received_CAN', can_frame, callback,(pub,pub2,message,my_address))
+    rospy.Subscriber('Received_CAN', can_frame, callback,(pub,pub2,pub3,message,my_address))
 
     # spin() simply keeps python from exiting until this node is stopped
     rospy.spin()

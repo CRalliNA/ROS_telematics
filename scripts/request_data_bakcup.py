@@ -1,14 +1,12 @@
 #!/usr/bin/env python
 # license removed for brevity
 import rospy,struct
-from std_msgs.msg import Int32
+from std_msgs.msg import String
 from telematics.msg import can_frame
 from op_decode import *
 count=0
 DE_DDI=[]#list of available Elements and DDIs
 obj_pool=None
-receiving_op=0
-
 f=open('/home/charlie/Telemetry/DDIs.csv','w')
 f.write('valid(3),Element Number,DDI,Information')
 g=open('/home/charlie/Telemetry/fixed_info.csv','w')
@@ -23,7 +21,36 @@ def callback(data,args):
     if (data.ID>>16)&0xFF==203  and (data.ID>>8)&0xFF==236 and len(data.Data)>8 and b'DVC' in data.Data[0:10]:#Scans messages for the object pool arriving
     #Find a better way to check for the object pool
         obj_pool=pool_decode(data.Data)
+        num=0 
+        num2=0       
+        print('\nDevice\n\nName: %s\nSoftware version:%s\nNAME(hex code): %s\nSerial Number: %s\n'%(obj_pool.DVC_t[0].txt_name,obj_pool.DVC_t[0].software,obj_pool.DVC_t[0].name,obj_pool.DVC_t[0].serial_num))
         
+
+        print('Elements\n')
+        for i in range(len(obj_pool.DET_t)):
+            print(obj_pool.DET_t[i].DE_num,obj_pool.DET_t[i].txt_name,obj_pool.DET_t[i].objects)
+        print('\nAvailable DDIs\n')
+        for i in range(len(obj_pool.DPD_t)):
+            print(obj_pool.DPD_t[i].ob_id,obj_pool.DPD_t[i].txt_name,obj_pool.DPD_t[i].DDI, obj_pool.DPD_t[i].trigger,obj_pool.DPD_t[i].presentation_id)
+
+        print('\nInformation\n')
+        for i in range(len(obj_pool.DPT_t)):
+            for j in range(len(obj_pool.DVP_t)):
+                if obj_pool.DVP_t[j].ob_id==obj_pool.DPT_t[i].presentation_id:
+                    num=j
+            for j in range(len(obj_pool.DET_t)):
+                for k in range(len(obj_pool.DET_t[j].objects)):
+                    if obj_pool.DET_t[j].objects[k]==obj_pool.DPT_t[i].ob_id:
+                        num2=j
+            print('%d, %d, %s:%s = %d%s'%(obj_pool.DPT_t[i].ob_id, obj_pool.DPT_t[i].DDI, obj_pool.DET_t[num2].txt_name, obj_pool.DPT_t[i].txt_name, (obj_pool.DPT_t[i].value*obj_pool.DVP_t[num].scale) + obj_pool.DVP_t[num].offset,obj_pool.DVP_t[num].unit))
+            g.write('\n%d, %d, %s:%s = %d%s'%(obj_pool.DPT_t[i].ob_id, obj_pool.DPT_t[i].DDI, obj_pool.DET_t[num2].txt_name, obj_pool.DPT_t[i].txt_name, (obj_pool.DPT_t[i].value*obj_pool.DVP_t[num].scale) + obj_pool.DVP_t[num].offset,obj_pool.DVP_t[num].unit))
+        print('\nDisplay info\n')
+        for i in range(len(obj_pool.DVP_t)):
+            print(obj_pool.DVP_t[i].ob_id,obj_pool.DVP_t[i].scale,obj_pool.DVP_t[i].num_dec,obj_pool.DVP_t[i].unit)
+        
+
+
+
         for i in range(len(obj_pool.DET_t)):#Creates an array (DE_DDI) of all the DDI messages we are allowed to ask for and all the info required to do so 
             for j in range(len(obj_pool.DET_t[i].objects)):
                 for k in range(len(obj_pool.DPD_t)):
@@ -43,11 +70,7 @@ def callback(data,args):
         pub.publish(message) 
         
         
-    elif (data.ID>>16)&0xFF==203  and (data.ID>>8)&0xFF==236 and (data.Data[0]&0x0F==3 or data.Data[0]&0x0F==13)  and count<len(DE_DDI):#Receives response to prev message and sends the nect one
-        print(count, len(DE_DDI),DE_DDI[count][1])
-        if  DE_DDI[count][1] == 57343:#version 4 doesn't seem to like this message , so we skip it
-            count=count+1
-            
+    elif (data.ID>>16)&0xFF==203  and (data.ID>>8)&0xFF==236 and (data.Data[0]&0x0F==3 or data.Data[0]&0x0F==13) and count<len(DE_DDI):#Receives response to prev message and sends the nect one
         trig=2
         value=0
        
@@ -72,12 +95,12 @@ def callback(data,args):
             value=1   
         
         #Sends request for DDI every second or when the value changes (depending on what it allows (above))
-        rospy.sleep(0.1)
-        hex_el2=int.to_bytes(((DE_DDI[count][0]&0x0F)<<4)+trig,1,'little')+int.to_bytes(((DE_DDI[count][0]>>4)&0xFF),1,'little')
-        message.Data=hex_el2+ hex_num +int.to_bytes(value,4,'little')
-        pub.publish(message)
+        #rospy.sleep(0.1)
+        #hex_el2=int.to_bytes(((DE_DDI[count][0]&0x0F)<<4)+trig,1,'little')+int.to_bytes(((DE_DDI[count][0]>>4)&0xFF),1,'little')
+        #message.Data=hex_el2+ hex_num +int.to_bytes(value,4,'little')
+        #pub.publish(message)
         count=count+1
-     
+
 
     #This section is for outputting the data into a file- change to real time at soem point    
     if (data.ID>>16)&0xFF==203  and (data.ID>>8)&0xFF==236 and (data.Data[0]&0x0F==3 or data.Data[0]&0x0F==13):
@@ -100,20 +123,16 @@ def callback(data,args):
         print('%d, %d, %d, %s:%s = %d%s\n'%(data.Data[0]&0x0F,(data.Data[0]>>4)+(data.Data[1]<<4),data.Data[2]+(data.Data[3]<<8),obj_pool.DET_t[det_num].txt_name,obj_pool.DPD_t[dpd_num].txt_name, (struct.unpack('<l',data.Data[4:8])[0] * obj_pool.DVP_t[dvp_num].scale) + obj_pool.DVP_t[dvp_num].offset, obj_pool.DVP_t[dvp_num].unit))
 
 
-
-
-
-
-
 #standard rospy stuff
 def talker():
     pub = rospy.Publisher('CAN_to_send', can_frame, queue_size=10)
     rospy.init_node('request_data', anonymous=True)
 
     message=can_frame()
-
+    
+    
+   
     rospy.Subscriber('Received_CAN',can_frame,callback,(pub,message))
-
     rospy.spin()
 if __name__ == '__main__':
     try:

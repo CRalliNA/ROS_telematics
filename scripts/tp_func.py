@@ -61,12 +61,12 @@ def TP_ACK(pub,message,data,my_address,msg_bytes,PGN):
     pub.publish(message)
     
     
-    if PGN==b'\x00\xcb\x00':
+    #if PGN==b'\x00\xcb\x00':
         #This is the object pool transfer response bytes3-6 are the size of data received
         #Probably move somewhere else
-        message.ID=0x0CCBEAEC
-        message.Dest=234
-        message.Data=b'q\x00\x93\x06\x00\x00\xff\xff'
-        pub.publish(message) 
+        #message.ID=0x0CCBEAEC
+        #message.Dest=234
+        #message.Data=b'q\x00\x93\x06\x00\x00\xff\xff'
+        #pub.publish(message) 
     
     

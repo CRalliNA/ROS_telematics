@@ -54,7 +54,7 @@ def bus_respond(pub,message,data,my_address):
             
         #product identification
         elif req_PGN==64965:
-            message.Data=b'Twyne1*00:00:00:00:00:00*In cab*Nick Abbey Digital Agriculture*0000*'#zeros should be mac address - find out what it is for the ecu
+            message.Data=b'Twyne1*00:00:00:00:00:00*In Cab*Nick Abbey Digital Agriculture*0000*'#zeros should be mac address - find out what it is for the ecu
             
          #ECU identification
         elif req_PGN==64653:
@@ -71,7 +71,7 @@ def bus_respond(pub,message,data,my_address):
             pub.publish(message)
             
         
-def implement_respond(pub,message,data,my_address):
+def implement_respond(pub,message,data,my_address,rec_op):
     sender=data.ID&0xFF
     message.Data=None
     priority=0
@@ -84,7 +84,7 @@ def implement_respond(pub,message,data,my_address):
     elif data.Data==b'\x00\xff\xff\xff\xff\xff\xff\xff':# or data.Data[0:1]==b'\x10':
         print('received request version')
         priority=5
-        message.Data=(b'\x10\x03\xff\x02\x00\x06\xc8\x08')#TC/DL version message
+        message.Data=(b'\x10\x04\xff\x01\x00\x00\x00\x00')#TC/DL version message
         message.ID=(priority<<26)+(203<<16)+(sender<<8)+my_address
         message.Dest=sender
         pub.publish(message) 
@@ -92,15 +92,22 @@ def implement_respond(pub,message,data,my_address):
         message.Data=b'\x00\xff\xff\xff\xff\xff\xff\xff'#request version message
         
     #Receive request structure label message and send structure label unavailable in response
-    elif data.Data==b'\x01\x34\x90\x42\x0d\x91\x1a\x7b':
+    elif data.Data[0]==1:#b'\x01\x34\x90\x42\x0d\x91\x1a\x7b':
         priority=5
-        message.Data=(b'\x11\xff\xff\xff\xff\xff\xff\xff')
- 
+        #message.Data=(b'\x11\xff\xff\xff\xff\xff\xff\xff')
+        message.Data=b'\x11'+data.Data[1:]
+    
+    #Receive request localisation and respond with localisation unknown    
+    elif data.Data[0:1]==b'\x21':
+        priority=5
+        message.Data=(b'\x31\xff\xff\xff\xff\xff\xff\xff')
+
     #Receive request object pool transfer message and respond with request object pool transfer response message
     elif data.Data[0:1]==b'\x41':
         priority=5
         message.Data=(b'\x51\x00\xff\xff\xff\xff\xff\xff')
-
+        rec_op=1
+        
     #Receive object pool activate message and respond with object pool activate response message
     elif data.Data==b'\x81\xff\xff\xff\xff\xff\xff\xff':
         priority=5
@@ -111,3 +118,5 @@ def implement_respond(pub,message,data,my_address):
         message.ID=(priority<<26)+(203<<16)+(sender<<8)+my_address
         message.Dest=sender
         pub.publish(message) 
+        
+    return (rec_op)
